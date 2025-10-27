@@ -99,14 +99,14 @@ try {
     $mail->isSMTP();
     $mail->Host       = 'smtp.gmail.com';
     $mail->SMTPAuth   = true;
-    $mail->Username   = 'deepanshu123sharma4@gmail.com'; // YOUR Gmail address
-    $mail->Password   = 'jkff uqzc rfdz gipt'; // Replace with your 16-char app password
+    $mail->Username   = 'eversure@rathigroup.com'; // YOUR Gmail address
+    $mail->Password   = '755MysJDwhMd'; // Replace with your 16-char app password
     $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
     $mail->Port       = 587;
     
     // Recipients
-    $mail->setFrom('deep1209anshu@gmail.com', 'Career Application - Eversure');
-    $mail->addAddress('deepanshu123sharma4@gmail.com', 'Deepanshu Sharma');
+    $mail->setFrom('eversure@rathigroup.com', 'Career Application - Eversure');
+    $mail->addAddress('eversure@rathigroup.com', 'Eversure');
     $mail->addReplyTo($email, "$firstName $lastName");
     
     // Attach resume file
