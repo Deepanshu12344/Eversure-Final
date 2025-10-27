@@ -37,61 +37,120 @@ const Contact = () => {
     setShowCountryDropdown(false);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    setSubmitStatus(null);
+  // const handleSubmit = async (e) => {
+  //   e.preventDefault();
+  //   setIsSubmitting(true);
+  //   setSubmitStatus(null);
 
-    const mailData = {
-      name: formData.name,
-      contact: formData.email + (formData.phone ? ` | Phone: ${selectedCountry.code}${formData.phone}` : ''),
-      subject: `${formData.subject} - ${formData.name}${formData.company ? ` (${formData.company})` : ''}`,
-      body: formData.message
-    };
+  //   const mailData = {
+  //     name: formData.name,
+  //     contact: formData.email + (formData.phone ? ` | Phone: ${selectedCountry.code}${formData.phone}` : ''),
+  //     subject: `${formData.subject} - ${formData.name}${formData.company ? ` (${formData.company})` : ''}`,
+  //     body: formData.message
+  //   };
 
-    try {
-      const response = await fetch('https://eversure-final.onrender.com/api/send-mail', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(mailData)
+  //   try {
+  //     const response = await fetch('https://eversure-final.onrender.com/api/send-mail', {
+  //       method: 'POST',
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //       },
+  //       body: JSON.stringify(mailData)
+  //     });
+
+  //     const result = await response.json();
+
+  //     if (response.ok && result.success) {
+  //       setSubmitStatus('success');
+  //       setFormData({
+  //         name: '',
+  //         email: '',
+  //         company: '',
+  //         phone: '',
+  //         subject: '',
+  //         message: ''
+  //       });
+        
+  //       if (downloadBrochure) {
+  //         const link = document.createElement('a');
+  //         link.href = '/brochure.pdf';
+  //         link.download = 'brochure.pdf';
+  //         document.body.appendChild(link);
+  //         link.click();
+  //         document.body.removeChild(link);
+  //       }
+        
+  //     } else {
+  //       setSubmitStatus('error');
+  //       console.error('Server error:', result.error);
+  //     }
+      
+  //   } catch (error) {
+  //     setSubmitStatus('error');
+  //     console.error('Network error:', error);
+  //   } finally {
+  //     setIsSubmitting(false);
+  //   }
+  // };
+
+  // Replace the handleSubmit function in your Contact component with this:
+
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setIsSubmitting(true);
+  setSubmitStatus(null);
+
+  const mailData = {
+    name: formData.name,
+    contact: formData.email + (formData.phone ? ` | Phone: ${selectedCountry.code}${formData.phone}` : ''),
+    subject: `${formData.subject} - ${formData.name}${formData.company ? ` (${formData.company})` : ''}`,
+    body: formData.message
+  };
+
+  try {
+    // Update this URL to point to your PHP script location
+    const response = await fetch('http://localhost:8000/php/mail.php', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(mailData)
+    });
+
+    const result = await response.json();
+
+    if (response.ok && result.success) {
+      setSubmitStatus('success');
+      setFormData({
+        name: '',
+        email: '',
+        company: '',
+        phone: '',
+        subject: '',
+        message: ''
       });
-
-      const result = await response.json();
-
-      if (response.ok && result.success) {
-        setSubmitStatus('success');
-        setFormData({
-          name: '',
-          email: '',
-          company: '',
-          phone: '',
-          subject: '',
-          message: ''
-        });
-        
-        if (downloadBrochure) {
-          const link = document.createElement('a');
-          link.href = '/brochure.pdf';
-          link.download = 'brochure.pdf';
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-        }
-        
-      } else {
-        setSubmitStatus('error');
-        console.error('Server error:', result.error);
+      
+      if (downloadBrochure) {
+        const link = document.createElement('a');
+        link.href = '/brochure.pdf';
+        link.download = 'brochure.pdf';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
       }
       
-    } catch (error) {
+    } else {
       setSubmitStatus('error');
-      console.error('Network error:', error);
-    } finally {
-      setIsSubmitting(false);
+      console.error('Server error:', result.error);
     }
-  };
+    
+  } catch (error) {
+    setSubmitStatus('error');
+    console.error('Network error:', error);
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   return (
     <div className="relative z-0">
