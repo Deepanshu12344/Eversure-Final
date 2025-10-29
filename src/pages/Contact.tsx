@@ -109,7 +109,7 @@ const handleSubmit = async (e) => {
 
   try {
     // Update this URL to point to your PHP script location
-    const response = await fetch('http://localhost:8000/php/mail.php', {
+    const response = await fetch('https://eversure.rathigroup.com/php/mail.php', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

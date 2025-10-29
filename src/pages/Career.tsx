@@ -131,7 +131,7 @@ function Career() {
     try {
       // Use the correct URL
       // const response = await fetch('http://localhost:5000/api/career/submit', {
-      const response = await fetch('http://localhost:8000/php/career.php', {
+      const response = await fetch('https://eversure.rathigroup.com/php/career.php', {
         method: 'POST',
         body: formDataToSend,
         // Don't set Content-Type header - let the browser set it for FormData
