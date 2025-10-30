@@ -59,12 +59,12 @@ try {
     
     // Server settings
     $mail->isSMTP();
-    $mail->Host       = 'smtp.gmail.com';
+    $mail->Host       = 'smtp.zoho.in';
     $mail->SMTPAuth   = true;
     $mail->Username   = 'eversure@rathigroup.com'; // YOUR Gmail address
     $mail->Password   = '755MysJDwhMd'; // Replace with your 16-char app password
-    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-    $mail->Port       = 587;
+    $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+    $mail->Port       = 465;
     
     // For debugging (remove in production)
     // $mail->SMTPDebug = 2;
