@@ -49,7 +49,6 @@ function Career() {
       newErrors.lastName = 'Last name is required';
     }
 
-    // FIXED: Added post validation
     if (!formData.post.trim()) {
       newErrors.post = 'Position/Post is required';
     }
@@ -70,9 +69,8 @@ function Career() {
       newErrors.address = 'Address is required';
     }
 
-    if (!formData.resume) {
-      newErrors.resume = 'Resume is required';
-    } else if (formData.resume && !['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'].includes(formData.resume.type)) {
+    // Resume is optional - will be sent via email
+    if (formData.resume && !['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'].includes(formData.resume.type)) {
       newErrors.resume = 'Please upload a PDF or Word document';
     } else if (formData.resume && formData.resume.size > 5 * 1024 * 1024) {
       newErrors.resume = 'File size must be less than 5MB';
@@ -101,47 +99,36 @@ function Career() {
     e.preventDefault();
     
     if (!validateForm()) {
-      console.log('Validation failed, errors:', errors);
       return;
     }
 
     setIsSubmitting(true);
     setSubmitMessage('');
-    setErrors({}); // Clear any previous errors
+    setErrors({});
 
-    // Create FormData for file upload
-    const formDataToSend = new FormData();
-    formDataToSend.append('firstName', formData.firstName.trim());
-    formDataToSend.append('lastName', formData.lastName.trim());
-    formDataToSend.append('post', formData.post.trim()); // Make sure post is included
-    formDataToSend.append('email', formData.email.trim());
-    formDataToSend.append('contactNo', formData.contactNo.trim());
-    formDataToSend.append('address', formData.address.trim());
-    
-    if (formData.resume) {
-      formDataToSend.append('resume', formData.resume);
-    }
-
-    // Debug: Log what we're sending
-    console.log('Form data being sent:');
-    for (let [key, value] of formDataToSend.entries()) {
-      console.log(key, value);
-    }
+    // Prepare form data (without file - Formspree free doesn't support files)
+    const dataToSend = {
+      firstName: formData.firstName.trim(),
+      lastName: formData.lastName.trim(),
+      post: formData.post.trim(),
+      email: formData.email.trim(),
+      contactNo: formData.contactNo.trim(),
+      address: formData.address.trim(),
+      resumeFileName: formData.resume ? formData.resume.name : 'Not provided'
+    };
 
     try {
-      // Use the correct URL
-      // const response = await fetch('http://localhost:5000/api/career/submit', {
-      const response = await fetch('https://eversuremedical.com/php/career.php', {
+      const response = await fetch('https://formspree.io/f/xnnoobka', {
         method: 'POST',
-        body: formDataToSend,
-        // Don't set Content-Type header - let the browser set it for FormData
+        body: JSON.stringify(dataToSend),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
       });
 
-      const result = await response.json();
-      console.log('Response:', result);
-      
-      if (result.success) {
-        setSubmitMessage(result.message);
+      if (response.ok) {
+        setSubmitMessage('Application submitted successfully! Please email your resume to eversure@rathigroup.com with the subject "Job Application - ' + formData.post + '"');
         // Reset form on success
         setFormData({
           firstName: '',
@@ -152,18 +139,9 @@ function Career() {
           address: '',
           resume: null
         });
-
-        // Reset file input
-        const fileInput = document.getElementById('resume') as HTMLInputElement;
-        if (fileInput) fileInput.value = '';
-
+        
       } else {
-        setSubmitMessage(result.message);
-        // Set backend validation errors if any
-        if (result.errors) {
-          console.log('Backend errors:', result.errors);
-          setErrors(result.errors);
-        }
+        setSubmitMessage('There was a problem submitting your application. Please try again or contact us directly.');
       }
     } catch (error) {
       console.error('Submission error:', error);
@@ -365,54 +343,23 @@ function Career() {
               </div>
 
               {/* Resume Upload */}
-              <div>
+              {/* <div>
                 <label htmlFor="resume" className="block text-sm font-semibold text-gray-700 mb-2">
                   <FileText className="inline w-4 h-4 mr-2" />
-                  Upload Resume *
+                  Resume (Optional - Please email to eversure@rathigroup.com)
                 </label>
-                <div className="relative">
-                  <input
-                    type="file"
-                    id="resume"
-                    onChange={handleFileChange}
-                    accept=".pdf,.doc,.docx"
-                    className="hidden"
-                    disabled={isSubmitting}
-                  />
-                  <label
-                    htmlFor="resume"
-                    className={`w-full flex items-center justify-center px-4 py-6 border-2 border-dashed rounded-lg transition-colors ${
-                      isSubmitting 
-                        ? 'cursor-not-allowed bg-gray-50' 
-                        : 'cursor-pointer hover:bg-gray-50'
-                    } ${
-                      errors.resume ? 'border-red-300' : 'border-gray-300 hover:border-[#309ed9]'
-                    }`}
-                  >
-                    <div className="text-center">
-                      <Upload className={`mx-auto h-12 w-12 mb-4 ${
-                        isSubmitting ? 'text-gray-300' : 'text-gray-400'
-                      }`} />
-                      <div className="text-sm text-gray-600">
-                        {formData.resume ? (
-                          <span className="font-medium text-[#309ed9]">
-                            {formData.resume.name}
-                          </span>
-                        ) : (
-                          <>
-                            <span className="font-medium">Click to upload</span> or drag and drop
-                            <br />
-                            <span className="text-gray-500">PDF, DOC, DOCX (max. 5MB)</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </label>
-                </div>
-                {errors.resume && (
-                  <p className="mt-2 text-sm text-red-600">{errors.resume}</p>
-                )}
-              </div>
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-3">
+                  <p className="text-sm text-yellow-800">
+                    📧 <strong>Note:</strong> Please email your resume directly to{' '}
+                    <a href="mailto:eversure@rathigroup.com" className="text-[#309ed9] hover:underline font-semibold">
+                      eversure@rathigroup.com
+                    </a>{' '}
+                    after submitting this form.
+                  </p>
+                </div> */}
+                {/* File upload hidden - users will email resume separately */}
+                {/* <input type="hidden" name="resume" value="Will be sent via email" />
+              </div> */}
 
               {/* Submit Button */}
               <div className="pt-6">
@@ -439,9 +386,20 @@ function Career() {
             {/* Additional Info */}
             <div className="mt-12 pt-8 border-t border-gray-200">
               <div className="text-center text-gray-600">
-                <p className="mb-2">
-                  <strong>Questions about your application?</strong>
+                {/* <p className="mb-4">
+                  <strong>📎 Important: Please email your resume</strong>
                 </p>
+                <p className="mb-4 text-sm bg-blue-50 border border-blue-200 rounded-lg p-4 inline-block">
+                  After submitting this form, please send your resume to{' '}
+                  <a href="mailto:eversure@rathigroup.com" className="text-[#309ed9] hover:underline font-semibold">
+                    eversure@rathigroup.com
+                  </a>
+                  <br />
+                  Include the position name in your email subject.
+                </p>
+                <p className="mb-2 mt-6">
+                  <strong>Questions about your application?</strong>
+                </p> */}
                 <p>
                   Contact our HR team at{' '}
                   <a href="mailto:eversure@rathigroup.com" className="text-[#309ed9] hover:underline">

@@ -102,14 +102,15 @@ const handleSubmit = async (e) => {
 
   const mailData = {
     name: formData.name,
-    contact: formData.email + (formData.phone ? ` | Phone: ${selectedCountry.code}${formData.phone}` : ''),
-    subject: `${formData.subject} - ${formData.name}${formData.company ? ` (${formData.company})` : ''}`,
-    body: formData.message
+    email: formData.email,
+    company: formData.company,
+    phone: formData.phone ? `${selectedCountry.code}${formData.phone}` : '',
+    subject: formData.subject,
+    message: formData.message
   };
 
   try {
-    // Update this URL to point to your PHP script location
-    const response = await fetch('https://eversuremedical.com/php/mail.php', {
+    const response = await fetch('https://formspree.io/f/mdkpplvk', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -117,9 +118,7 @@ const handleSubmit = async (e) => {
       body: JSON.stringify(mailData)
     });
 
-    const result = await response.json();
-
-    if (response.ok && result.success) {
+    if (response.ok) {
       setSubmitStatus('success');
       setFormData({
         name: '',
@@ -141,7 +140,7 @@ const handleSubmit = async (e) => {
       
     } else {
       setSubmitStatus('error');
-      console.error('Server error:', result.error);
+      console.error('Server error:', response.status);
     }
     
   } catch (error) {
@@ -151,7 +150,6 @@ const handleSubmit = async (e) => {
     setIsSubmitting(false);
   }
 };
-
   return (
     <div className="relative z-0">
       {/* Hero Section */}

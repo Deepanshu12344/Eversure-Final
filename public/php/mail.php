@@ -1,11 +1,11 @@
 <?php
-// Enable error reporting for debugging
+// Simple error logging
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
-ini_set('error_log', __DIR__ . '/php_errors.log');
+ini_set('error_log', __DIR__ . '/mail_errors.log');
 
-// Set headers for CORS and JSON response
+// CORS headers - MUST be first
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit();
 }
 
-// Get JSON data from request body
+// Get JSON data
 $json = file_get_contents('php://input');
 $data = json_decode($json, true);
 
@@ -35,78 +35,157 @@ if (!isset($data['name']) || !isset($data['contact']) || !isset($data['subject']
     exit();
 }
 
-// Sanitize input data
+// Sanitize input
 $name = htmlspecialchars(strip_tags($data['name']));
 $contact = htmlspecialchars(strip_tags($data['contact']));
 $subject = htmlspecialchars(strip_tags($data['subject']));
 $body = htmlspecialchars(strip_tags($data['body']));
 
-// Import PHPMailer classes
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
-
-// Check if autoload exists
-if (!file_exists(__DIR__ . '/vendor/autoload.php')) {
-    http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'PHPMailer not installed. Run: composer require phpmailer/phpmailer']);
-    exit();
+// Extract email for reply-to
+$replyEmail = $contact;
+if (strpos($contact, '|') !== false) {
+    $parts = explode('|', $contact);
+    $replyEmail = trim($parts[0]);
 }
 
-require __DIR__ . '/vendor/autoload.php';
+// ============================================
+// ZOHO MAIL API CONFIGURATION
+// ============================================
+// Get your credentials from: https://api-console.zoho.in/
+$ZOHO_ACCOUNT_ID = 'YOUR_ACCOUNT_ID_HERE';  // Replace with your Zoho account ID
+$ZOHO_CLIENT_ID = 'YOUR_CLIENT_ID_HERE';     // Replace with your Client ID
+$ZOHO_CLIENT_SECRET = 'YOUR_CLIENT_SECRET_HERE'; // Replace with your Client Secret
+$ZOHO_REFRESH_TOKEN = 'YOUR_REFRESH_TOKEN_HERE'; // Replace with your Refresh Token
 
+$FROM_EMAIL = 'eversure@rathigroup.com';
+$FROM_NAME = 'Eversure Contact Form';
+$TO_EMAIL = 'eversure@rathigroup.com';
+$TO_NAME = 'Eversure Team';
+
+// ============================================
+// STEP 1: Get Access Token
+// ============================================
+function getZohoAccessToken($clientId, $clientSecret, $refreshToken) {
+    $tokenUrl = "https://accounts.zoho.in/oauth/v2/token";
+    
+    $postData = http_build_query([
+        'refresh_token' => $refreshToken,
+        'client_id' => $clientId,
+        'client_secret' => $clientSecret,
+        'grant_type' => 'refresh_token'
+    ]);
+    
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $tokenUrl);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+    
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    if ($httpCode !== 200) {
+        error_log("Zoho token error: " . $response);
+        return null;
+    }
+    
+    $result = json_decode($response, true);
+    return isset($result['access_token']) ? $result['access_token'] : null;
+}
+
+// ============================================
+// STEP 2: Send Email via Zoho API
+// ============================================
+function sendZohoEmail($accessToken, $accountId, $fromEmail, $fromName, $toEmail, $toName, $subject, $bodyText, $replyTo = null) {
+    $apiUrl = "https://mail.zoho.in/api/accounts/{$accountId}/messages";
+    
+    // Prepare email data
+    $emailData = [
+        'fromAddress' => $fromEmail,
+        'toAddress' => $toEmail,
+        'subject' => $subject,
+        'content' => $bodyText,
+        'mailFormat' => 'plaintext'
+    ];
+    
+    if ($replyTo && filter_var($replyTo, FILTER_VALIDATE_EMAIL)) {
+        $emailData['replyTo'] = $replyTo;
+    }
+    
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $apiUrl);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($emailData));
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Authorization: Zoho-oauthtoken ' . $accessToken,
+        'Content-Type: application/json'
+    ]);
+    
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    if ($httpCode !== 200) {
+        error_log("Zoho send error: " . $response);
+        return false;
+    }
+    
+    return true;
+}
+
+// ============================================
+// MAIN EXECUTION
+// ============================================
 try {
-    $mail = new PHPMailer(true);
+    // Get access token
+    $accessToken = getZohoAccessToken($ZOHO_CLIENT_ID, $ZOHO_CLIENT_SECRET, $ZOHO_REFRESH_TOKEN);
     
-    // Server settings
-    $mail->isSMTP();
-    $mail->Host       = 'smtp.zoho.in';
-    $mail->SMTPAuth   = true;
-    $mail->Username   = 'eversure@rathigroup.com'; // YOUR Gmail address
-    $mail->Password   = '755MysJDwhMd'; // Replace with your 16-char app password
-    $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
-    $mail->Port       = 465;
-    
-    // For debugging (remove in production)
-    // $mail->SMTPDebug = 2;
-    
-    // Recipients
-    $mail->setFrom('eversure@rathigroup.com', 'Contact Form - Eversure');
-    $mail->addAddress('eversure@rathigroup.com', 'Eversure');
-    
-    // Extract email from contact field for reply-to (contact contains: email | Phone: +91...)
-    $emailMatch = [];
-    $replyEmail = $contact;
-    
-    // If contact contains pipe character, extract just the email part
-    if (strpos($contact, '|') !== false) {
-        $parts = explode('|', $contact);
-        $replyEmail = trim($parts[0]);
+    if (!$accessToken) {
+        throw new Exception('Failed to get Zoho access token');
     }
     
-    // Validate email format before adding reply-to
-    if (filter_var($replyEmail, FILTER_VALIDATE_EMAIL)) {
-        $mail->addReplyTo($replyEmail, $name);
+    // Prepare email body
+    $emailBody = "New Contact Form Submission\n\n";
+    $emailBody .= "Name: {$name}\n";
+    $emailBody .= "Contact: {$contact}\n\n";
+    $emailBody .= "Message:\n{$body}\n\n";
+    $emailBody .= "---\n";
+    $emailBody .= "Sent from: Contact Form\n";
+    $emailBody .= "Time: " . date('Y-m-d H:i:s');
+    
+    // Send email
+    $sent = sendZohoEmail(
+        $accessToken,
+        $ZOHO_ACCOUNT_ID,
+        $FROM_EMAIL,
+        $FROM_NAME,
+        $TO_EMAIL,
+        $TO_NAME,
+        $subject,
+        $emailBody,
+        $replyEmail
+    );
+    
+    if ($sent) {
+        http_response_code(200);
+        echo json_encode([
+            'success' => true,
+            'message' => 'Email sent successfully'
+        ]);
+    } else {
+        throw new Exception('Failed to send email');
     }
-    
-    // Content
-    $mail->isHTML(false);
-    $mail->Subject = $subject;
-    $mail->Body    = "New Contact Form Submission\n\n" .
-                     "Name: $name\n" .
-                     "Contact: $contact\n\n" .
-                     "Message:\n$body\n\n" .
-                     "---\n" .
-                     "Sent from: Contact Form\n" .
-                     "Time: " . date('Y-m-d H:i:s');
-    
-    $mail->send();
-    
-    http_response_code(200);
-    echo json_encode(['success' => true, 'message' => 'Email sent successfully']);
     
 } catch (Exception $e) {
-    error_log("Mail Error: " . $mail->ErrorInfo);
+    error_log("Error: " . $e->getMessage());
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => "Failed to send email: {$mail->ErrorInfo}"]);
+    echo json_encode([
+        'success' => false,
+        'error' => 'Failed to send email. Please try again later.'
+    ]);
 }
 ?>
